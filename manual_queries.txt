@@ -1,0 +1,80 @@
+Insert a New Record
+--------------------
+
+'''
+> b = { "fields" : 
+...     {
+...        "reporter": {
+...             "displayName": "Risto"
+...        },
+...        "summary": "New totally broken issue",
+...        "project": {
+...             "name": "Core Server"
+...        }
+...     }
+...   }
+{
+    "fields" : {
+        "reporter" : {
+            "displayName" : "Risto"
+        },
+        "summary" : "New totally broken issue",
+        "project" : { 
+            "name" : "Core Server"
+        }
+    }
+}
+> db.issues.insert(b);
+WriteResult({ "nInserted" : 1 })
+'''
+
+
+Update a Record
+---------------
+
+'''
+> db.issues.findOne({"fields.reporter.displayName": "Risto"})
+{
+    "_id" : ObjectId("56ef5e301fc57209a9dec3d8"),
+    "fields" : {
+        "reporter" : {
+           "displayName" : "Risto"
+        },
+        "summary" : "New totally broken issue",
+        "project" : {
+            "name" : "Core Server"
+        }
+    }
+}
+> db.issues.findOne({"fields.reporter.displayName": "risto"})
+null
+> db.issues.update({"fields.reporter.displayName": "Risto"}, {"fields": {
+    "reporter": { "displayName": "risto"}}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+> db.issues.findOne({"fields.reporter.displayName": "risto"})
+{
+    "_id" : ObjectId("56ef5e301fc57209a9dec3d8"),
+    "fields" : {
+        "reporter" : {
+            "displayName" : "risto"
+        }
+    }
+}
+'''
+
+^ this is not what was suppose to happen!
+
+Here we go again:
+
+'''
+> db.issues.update({"fields.reporter.displayName": "Risto"}, { $set: {"fields.reporter.displayName": "risto"}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+> db.issues.find({"fields.reporter.displayName": "Risto"})
+> db.issues.find({"fields.reporter.displayName": "risto"})
+{ "_id" : ObjectId("56ef61d41fc57209a9dec3d9"), "fields" : { "reporter" : {
+    "displayName" : "risto" }, "summary" : "New totally broken issue",
+    "project" : { "name" : "Core Server" } } }
+'''
+^ this is more like it!
+
+
