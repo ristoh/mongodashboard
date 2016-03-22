@@ -26,6 +26,7 @@ class IssueDashboard(BaseDashboard):
         self.store_domains_for_issues()
         self.store_open_and_close_rates()
         self.store_component_issues()
+        self.store_resolution_count()
 
     def get_reporter_domains(self):
         "a set of domains which have reported domains"
@@ -96,6 +97,30 @@ class IssueDashboard(BaseDashboard):
                                           }
                                          )
 
+    def store_resolution_count(self):
+        """update db.reporter_domains with resolution name"""
+
+        resolution_names = self.issues.distinct("fields.resolution.name")
+
+        for domain in self.reporter_domains.find():
+            domain_name = "@" + domain['hostname']
+            update_record = {}
+            for key in resolution_names:
+                count = self.issues.find({"fields.reporter.emailAddress":
+                                          {"$regex": domain_name},
+                                          "fields.resolution.name": key}).count()
+                update_record.update({
+                    key: count
+                })
+            self.reporter_domains.update({"hostname": domain['hostname']},
+                                         {"$set": update_record})
+
+    def store_component_issues(self):
+        """store db.component_issues collection"""
+
+        component_issues = self.__get_issues_per_component()
+        self.db.component_issues.insert_many(component_issues)
+
     def __get_issues_per_component(self):
         """calculate issues per component"""
 
@@ -110,10 +135,3 @@ class IssueDashboard(BaseDashboard):
             component_issues.append(record)
 
         return component_issues
-
-    def store_component_issues(self):
-        """store db.component_issues collection"""
-
-        component_issues = self.__get_issues_per_component()
-        self.db.component_issues.insert_many(component_issues)
-
