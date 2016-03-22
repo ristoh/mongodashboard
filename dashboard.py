@@ -10,7 +10,7 @@ import json
 import pymongo
 
 
-class Dashboard(object):
+class BaseDashboard(object):
 
     def __init__(self, host=settings.HOST, database=settings.DATABASE):
 
@@ -21,7 +21,17 @@ class Dashboard(object):
         self.dashboard = {}
 
 
-class BaseDashboard(Dashboard):
+class Dashboard(BaseDashboard):
+
+    def calculate_dashboard(self):
+
+        self.calculate_summary()
+        self.calculate_unresolved_by_priority()
+        self.calculate_unresolved_by_assignee()
+        self.calculate_unresolved_by_component()
+        self.calculate_unresolved_by_priority()
+        self.calculate_unresolved_by_version()
+
 
     def calculate_summary(self):
 

@@ -2,26 +2,33 @@
 
 """Issue Drilldown Dashboard
 
-More detailed analysis on issue creators, sources and resolution times.
+More detailed analysis on issue creators, sources (reporting domains)
+and resolution rates.
 """
 
-from dashboard import Dashboard
+from dashboard import BaseDashboard
 
-import json
 import logging
 
 from flanker.addresslib import address
-import pymongo
 
 
-class IssueDashboard(Dashboard):
+class IssueDashboard(BaseDashboard):
 
     def __init__(self):
 
         super(IssueDashboard, self).__init__()
         self.reporter_domains = self.db.reporter_domains
 
+    def calculate_issue_analytics_collections(self):
+
+        self.get_reporter_domains()
+        self.store_domains_for_issues()
+        self.store_open_and_close_rates()
+        self.store_component_issues()
+
     def get_reporter_domains(self):
+        "a set of domains which have reported domains"
 
         self.domains = set()
         for addr in self.db.issues.distinct("fields.reporter.emailAddress"):
@@ -33,25 +40,35 @@ class IssueDashboard(Dashboard):
             except AssertionError:
                 logging.debug("Invalid Address", addr)
 
-    def count_domains_for_issues(self):
+    def store_domains_for_issues(self):
+        """update a db.reporter_domains collection
+
+        store:
+            hostname - reporting hostname
+            issues - # of issues reported from that hostname
+        """
 
         for domain in self.domains:
-            count = self.issues.find({"fields.reporter.emailAddress":
-                              {"$regex": "@" + domain}}).count()
+            count = self.issues.find({"fields.reporter.emailAddress": {"$regex": "@" + domain}}).count()
             reporter_domain = {
                 "hostname": domain,
                 "issues": count
             }
             self.db.reporter_domains.insert(reporter_domain)
 
-    def update_open_and_close_rates(self):
+    def store_open_and_close_rates(self):
+        """update the db.reporter_domains with more issue stats
+
+        update:
+            open_issues - # of issues currently open
+            open_issue_percentage - % of issues still open
+            closed_issues - # of issues closed
+            closed-issue_percentage - % of issues closed
+        """
 
         for domain in self.reporter_domains.find():
-
             domain_name = "@" + domain['hostname']
-
             total_issues = domain['issues']
-
             open_issues = self.issues.find({"fields.status.name": "Open",
                                             "fields.reporter.emailAddress": {
                                                 "$regex": domain_name}}).count()
@@ -67,10 +84,10 @@ class IssueDashboard(Dashboard):
             if float(total_issues) > 0.0:
                 closed_issue_percentage = float(closed_issues) / float(total_issues) * 100
             else:
-                closed_issue_percentage = 'NaN'
+                closed_issue_percentage = ''
 
             self.reporter_domains.update({"hostname": domain['hostname']},
-                                         { "$set":
+                                         {"$set":
                                             {"open_issues": open_issues,
                                             "open_issue_percentage": open_issue_percentage,
                                             "closed_issues": closed_issues,
@@ -78,3 +95,25 @@ class IssueDashboard(Dashboard):
                                             }
                                           }
                                          )
+
+    def __get_issues_per_component(self):
+        """calculate issues per component"""
+
+        component_issues = []
+
+        for component in self.issues.distinct("fields.components.name"):
+            count = self.issues.find({"fields.components.name": component}).count()
+            record = {
+                "name": component,
+                "issues": count
+            }
+            component_issues.append(record)
+
+        return component_issues
+
+    def store_component_issues(self):
+        """store db.component_issues collection"""
+
+        component_issues = self.__get_issues_per_component()
+        self.db.component_issues.insert_many(component_issues)
+
