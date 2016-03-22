@@ -15,9 +15,9 @@ from flanker.addresslib import address
 
 class IssueDashboard(BaseDashboard):
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
 
-        super(IssueDashboard, self).__init__()
+        super(IssueDashboard, self).__init__(*args, **kwargs)
         self.reporter_domains = self.db.reporter_domains
 
     def calculate_issue_analytics_collections(self):
